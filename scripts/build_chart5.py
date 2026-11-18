@@ -1,14 +1,37 @@
 import pandas as pd
+import numpy as np
 
 def build_chart5():
     # Load raw data
     df = pd.read_csv('data/raw/epoch_notable_ai_models_20261020.csv')
     
-    # Convert date to year
-    df['Year'] = pd.to_datetime(df['Release_Date']).dt.year
+    # Extract Year from 'Publication date'
+    df['Year'] = pd.to_datetime(df['Publication date'], errors='coerce').dt.year
     
-    # Filter for US and China between 2023 and 2025
-    df_filtered = df[(df['Country'].isin(['United States', 'China'])) & (df['Year'].between(2023, 2025))]
+    # Filter for US and China 
+    df_filtered = df[
+        (df['Country (of organization)'].isin(['United States of America', 'China'])) & 
+        (df['Year'].between(2023, 2025))
+    ].copy()
+    
+    # Map 'Model accessibility' to the 4 categories
+    def map_strategy(access):
+        if pd.isna(access):
+            return 'Unknown'
+        access = str(access).lower()
+        if 'open' in access:
+            return 'Open Weights'
+        elif 'api' in access or 'hosted' in access:
+            return 'API/Hosted'
+        elif 'unreleased' in access or 'not released' in access:
+            return 'Unreleased'
+        else:
+            return 'Unknown'
+            
+    df_filtered['Release_Strategy'] = df_filtered['Model accessibility'].apply(map_strategy)
+    
+    # Rename 'United States of America' to 'United States' for the chart labels
+    df_filtered['Country'] = df_filtered['Country (of organization)'].replace({'United States of America': 'United States'})
     
     # Group and count
     grouped = df_filtered.groupby(['Year', 'Country', 'Release_Strategy']).size().reset_index(name='count')
